@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Phân Tích Bình Luận Quán Ăn — SVM AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#09090f;--surface:#111118;--card:#16161f;--card2:#1c1c28;
+  --border:#252535;--border2:#2e2e42;
+  --accent:#f97316;--accent2:#fb923c;--accent3:#fdba74;
+  --pos:#22c55e;--pos-bg:rgba(34,197,94,.1);--pos-bd:rgba(34,197,94,.25);
+  --neg:#f43f5e;--neg-bg:rgba(244,63,94,.1);--neg-bd:rgba(244,63,94,.25);
+  --neu:#a78bfa;--neu-bg:rgba(167,139,250,.1);--neu-bd:rgba(167,139,250,.25);
+  --spam:#64748b;--spam-bg:rgba(100,116,139,.1);--spam-bd:rgba(100,116,139,.25);
+  --text:#f8fafc;--text2:#cbd5e1;--muted:#64748b;
+  --glow:rgba(249,115,22,.2);
+  --radius:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Be Vietnam Pro',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── Background ── */
+.bg-grid{position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(249,115,22,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(215, 204, 195, 0.03) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(140px);pointer-events:none;z-index:0}
+.orb1{width:600px;height:600px;background:rgba(249,115,22,.07);top:-150px;right:-150px}
+.orb2{width:500px;height:500px;background:rgba(167,139,250,.05);bottom:-150px;left:-200px}
+
+/* ── Layout ── */
+.wrapper{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:44px 20px 100px}
+
+/* ── Header ── */
+header{text-align:center;margin-bottom:52px}
+.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(249,115,22,.1);
+  border:1px solid rgba(249,115,22,.25);border-radius:99px;padding:7px 18px;
+  font-size:11.5px;font-weight:700;color:var(--accent2);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:22px;backdrop-filter:blur(8px)}
+h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,5.5vw,3.4rem);
+  font-weight:900;line-height:1.15;margin-bottom:14px}
+h1 span{background:linear-gradient(135deg,#fff 25%,var(--accent2) 65%,var(--accent3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{color:var(--muted);font-size:15px;line-height:1.7;max-width:480px;margin:0 auto}
+.subtitle strong{color:var(--text2)}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:28px;margin-bottom:20px;transition:border-color .3s}
+.card:hover{border-color:var(--border2)}
+
+/* ── Section label ── */
+.slabel{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
+.slabel::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;flex-shrink:0}
+
+/* ── Textarea ── */
+textarea{width:100%;min-height:130px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:'Be Vietnam Pro',sans-serif;font-size:15px;
+  line-height:1.75;padding:16px 18px;resize:vertical;outline:none;
+  transition:border-color .25s,box-shadow .25s}
+textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+textarea::placeholder{color:#374151}
+
+/* ── Example chips ── */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{background:var(--surface);border:1px solid var(--border);border-radius:99px;
+  padding:6px 14px;font-size:12px;color:var(--muted);cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s}
+.chip:hover{border-color:var(--accent);color:var(--accent2);background:rgba(249,115,22,.06)}
+
+/* ── Controls ── */
+.controls{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+.btn-primary{flex:1;min-width:180px;background:linear-gradient(135deg,#ea580c,var(--accent2));
+  color:#fff;border:none;border-radius:12px;padding:15px 24px;
+  font-size:15px;font-family:'Be Vietnam Pro',sans-serif;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .15s,box-shadow .15s,opacity .2s;
+  box-shadow:0 4px 22px rgba(249,115,22,.3)}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px rgba(249,115,22,.42)}
+.btn-primary:active:not(:disabled){transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:var(--surface);color:var(--muted);border:1.5px solid var(--border);
+  border-radius:12px;padding:15px 20px;font-size:14px;font-family:'Be Vietnam Pro',sans-serif;
+  font-weight:600;cursor:pointer;transition:border-color .2s,color .2s;
+  display:flex;align-items:center;gap:6px}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+
+/* ── Spinner ── */
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.25);
+  border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Result Banner ── */
+#resultBanner{display:none;border-radius:var(--radius);padding:26px 28px;
+  margin-bottom:20px;animation:slideDown .45s cubic-bezier(.16,1,.3,1)}
+@keyframes slideDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+#resultBanner.positive{background:var(--pos-bg);border:1.5px solid var(--pos-bd)}
+#resultBanner.negative{background:var(--neg-bg);border:1.5px solid var(--neg-bd)}
+#resultBanner.neutral {background:var(--neu-bg);border:1.5px solid var(--neu-bd)}
+#resultBanner.spam    {background:var(--spam-bg);border:1.5px solid var(--spam-bd)}
+
+.banner-top{display:flex;align-items:flex-start;gap:18px}
+.banner-icon{font-size:40px;line-height:1;flex-shrink:0;margin-top:2px}
+.banner-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:800;line-height:1.2}
+.banner-title.positive{color:var(--pos)}
+.banner-title.negative{color:var(--neg)}
+.banner-title.neutral {color:var(--neu)}
+.banner-title.spam    {color:var(--spam)}
+.banner-sub{font-size:13.5px;color:var(--text2);margin-top:5px;line-height:1.5}
+
+/* ── Confidence pill ── */
+.conf-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);border-radius:99px;
+  padding:3px 12px;font-size:12px;font-weight:600;color:var(--text2);margin-top:10px}
+
+/* ── Breakdown ── */
+.breakdown{margin-top:22px;display:none}
+.breakdown-label{font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);margin-bottom:12px;
+  display:flex;align-items:center;gap:6px}
+.bd-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.bd-grid{grid-template-columns:1fr}}
+.bd-col{background:var(--card2);border-radius:12px;padding:14px 16px}
+.bd-col-title{font-size:11.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.bd-col-title.pos{color:var(--pos)}
+.bd-col-title.neg{color:var(--neg)}
+.bd-item{display:flex;align-items:center;justify-content:space-between;
+  font-size:13px;color:var(--text2);padding:7px 0;
+  border-bottom:1px solid var(--border)}
+.bd-item:last-child{border-bottom:none}
+.bd-conf{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;
+  background:rgba(255,255,255,.06)}
+
+/* ── Aspect Grid ── */
+.aspect-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.aspect-grid{grid-template-columns:1fr}}
+
+.acard{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
+  padding:18px;transition:border-color .3s;
+  animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
+.acard:nth-child(2){animation-delay:.07s}
+.acard:nth-child(3){animation-delay:.14s}
+.acard:nth-child(4){animation-delay:.21s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.acard.l1{border-color:var(--pos-bd)}
+.acard.l2{border-color:var(--neg-bd)}
+.acard.l3{border-color:var(--neu-bd)}
+
+.acard-key{font-size:10.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em}
+.acard-vi{font-size:14px;font-weight:600;color:var(--text);margin:4px 0 10px}
+.alabel{display:inline-flex;align-items:center;gap:6px;border-radius:99px;
+  padding:4px 12px;font-size:12px;font-weight:700;margin-bottom:14px}
+.alabel.l0{background:rgba(100,116,139,.12);color:var(--spam)}
+.alabel.l1{background:var(--pos-bg);color:var(--pos)}
+.alabel.l2{background:var(--neg-bg);color:var(--neg)}
+.alabel.l3{background:var(--neu-bg);color:var(--neu)}
+
+/* ── Probability bars ── */
+.prow{margin-bottom:8px}
+.prow:last-child{margin-bottom:0}
+.phd{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--muted);margin-bottom:3px}
+.ptrack{background:rgba(255,255,255,.05);border-radius:99px;height:5px;overflow:hidden}
+.pfill{height:100%;border-radius:99px;transition:width 1.1s cubic-bezier(.4,0,.2,1);width:0}
+.pfill.pos{background:linear-gradient(90deg,var(--pos),#4ade80)}
+.pfill.neg{background:linear-gradient(90deg,var(--neg),#fb7185)}
+.pfill.neu{background:linear-gradient(90deg,var(--neu),#c4b5fd)}
+.pfill.none{background:linear-gradient(90deg,#334155,#475569)}
+
+/* ── Train/Upload section ── */
+.train-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.upload-btn{display:flex;align-items:center;gap:8px;background:var(--surface);
+  border:1.5px dashed var(--border);border-radius:10px;
+  padding:11px 18px;font-size:13px;font-weight:600;color:var(--muted);
+  cursor:pointer;transition:all .2s}
+.upload-btn:hover{border-color:var(--accent);color:var(--text);background:rgba(249,115,22,.04)}
+.upload-name{font-size:13px;color:var(--accent2);font-weight:600}
+.status-row{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--neg);
+  box-shadow:0 0 8px var(--neg);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+.dot.on{background:var(--pos);box-shadow:0 0 8px var(--pos)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+#statusTxt{font-size:13px;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.7}
+.hint code{color:var(--accent2);background:rgba(249,115,22,.08);
+  padding:1px 6px;border-radius:4px;font-family:monospace}
+
+/* ── Divider ── */
+hr{border:none;border-top:1px solid var(--border);margin:20px 0}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--card2);border:1px solid var(--border2);color:var(--text);
+  font-size:14px;font-weight:500;padding:12px 24px;border-radius:12px;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);transition:transform .3s cubic-bezier(.16,1,.3,1),opacity .3s;
+  opacity:0;z-index:9999;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="badge">🍜 &nbsp;AI · SVM · ABSA · Tiếng Việt</div>
+    <h1><span>Phân Tích Bình Luận<br/>Quán Ăn Việt Nam</span></h1>
+    <p class="subtitle">
+      Mô hình <strong>SVM</strong> phân tích 4 khía cạnh đồng thời:<br/>
+      Không gian · Giá cả · Chất lượng món ăn · Dịch vụ
+    </p>
+  </header>
+
+  <!-- INPUT -->
+  <div class="card">
+    <div class="slabel">Nhập bình luận cần phân tích</div>
+    <textarea id="reviewInput" placeholder="Ví dụ: Quán ăn rất ngon, phục vụ nhiệt tình nhưng giá hơi đắt so với chất lượng...&#10;&#10;Nhấn Ctrl + Enter để phân tích nhanh"></textarea>
+    <div class="chips">
+      <span class="chip" onclick="setEx(0)">🌟 Tích cực</span>
+      <span class="chip" onclick="setEx(1)">😤 Tiêu cực</span>
+      <span class="chip" onclick="setEx(2)">⚖️ Hỗn hợp</span>
+      <span class="chip" onclick="setEx(3)">🙂 Trung lập</span>
+      <span class="chip" onclick="setEx(4)">🚫 Spam</span>
+    </div>
+    <div class="controls">
+      <button class="btn-primary" id="analyzeBtn" onclick="analyze()">
+        <span id="btnTxt">🔍 &nbsp;Phân Tích Ngay</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <button class="btn-ghost" onclick="clearAll()">🗑 &nbsp;Xóa</button>
+    </div>
+  </div>
+
+  <!-- BANNER -->
+  <div id="resultBanner">
+    <div class="banner-top">
+      <div class="banner-icon" id="bIcon"></div>
+      <div style="flex:1">
+        <div class="banner-title" id="bTitle"></div>
+        <div class="banner-sub"  id="bSub"></div>
+        <div class="conf-pill"   id="bConf"></div>
+      </div>
+    </div>
+    <div class="breakdown" id="breakdownBox">
+      <hr/>
+      <div class="breakdown-label">📊 Chi tiết phân tích — vừa tích cực vừa tiêu cực</div>
+      <div class="bd-grid" id="bdGrid"></div>
+    </div>
+  </div>
+
+  <!-- ASPECTS -->
+  <div class="card" id="aspectsCard" style="display:none">
+    <div class="slabel">Chi tiết từng khía cạnh</div>
+    <div class="aspect-grid" id="aspectGrid"></div>
+  </div>
+
+  <!-- TRAIN / UPLOAD -->
+  <div class="card">
+    <div class="slabel">Mô hình &amp; Dữ liệu huấn luyện</div>
+    <div class="status-row">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusTxt">Đang kiểm tra...</span>
+    </div>
+    <div class="train-row">
+      <label class="upload-btn" for="csvFile">📂 &nbsp;Upload CSV của bạn</label>
+      <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="uploadCSV(this)"/>
+      <span class="upload-name" id="uploadName"></span>
+      <button class="btn-ghost" onclick="trainSample()">⚡ &nbsp;Train dữ liệu mẫu</button>
+    </div>
+    <p class="hint">
+      CSV cần đúng 5 cột:
+      <code>Review</code> <code>AMBIENCE#GENERAL</code> <code>FOOD#PRICES</code>
+      <code>FOOD#QUALITY</code> <code>SERVICE#GENERAL</code><br/>
+      Nhãn: <code>0</code>=Không đề cập &nbsp;·&nbsp; <code>1</code>=Tích cực
+      &nbsp;·&nbsp; <code>2</code>=Tiêu cực &nbsp;·&nbsp; <code>3</code>=Trung lập
+    </p>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:5000';
+const EXAMPLES = [
+  'Quán ăn rất ngon, không gian sạch sẽ thoáng đãng, nhân viên phục vụ tận tình chu đáo. Giá cả hợp lý so với chất lượng. Sẽ quay lại lần sau!',
+  'Đợi cả tiếng mới được phục vụ, đồ ăn ra nguội lạnh và nhạt nhẽo. Nhân viên thái độ thờ ơ, giá lại đắt cắt cổ. Rất thất vọng!',
+  'Không gian quán rất đẹp và lãng mạn, nhưng đồ ăn không ngon như kỳ vọng. Giá cả ổn nhưng dịch vụ hơi chậm.',
+  'Ăn tạm được thôi, không xuất sắc cũng không tệ, giá bình thường, không gian bình thường.',
+  'ok ok ok test 123 abc bbbbb',
+];
+const ICONS = {positive:'🎉',negative:'😞',neutral:'⚖️',spam:'🚫'};
+
+function setEx(i){ document.getElementById('reviewInput').value = EXAMPLES[i]; }
+
+async function analyze(){
+  const text = document.getElementById('reviewInput').value.trim();
+  if(!text){ toast('⚠️ Vui lòng nhập bình luận!'); return; }
+  setLoading(true);
+  try{
+    const r = await fetch(`${API}/predict`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({review:text})
+    });
+    const d = await r.json();
+    if(d.error){ toast('❌ '+d.error); return; }
+    renderResult(d);
+  }catch(e){
+    toast('❌ Không kết nối được server. Hãy chạy: python app.py');
+  }finally{ setLoading(false); }
+}
+
+function renderResult(d){
+  const banner = document.getElementById('resultBanner');
+  banner.className = d.overall_color;
+  banner.style.display = 'block';
+
+  document.getElementById('bIcon').textContent = ICONS[d.overall_color]||'🔍';
+
+  const bTitle = document.getElementById('bTitle');
+  bTitle.textContent = d.overall_vi;
+  bTitle.className = 'banner-title ' + d.overall_color;
+
+  const aspects = d.aspects||{};
+  const pos = Object.values(aspects).filter(v=>v.label===1).length;
+  const neg = Object.values(aspects).filter(v=>v.label===2).length;
+  const men = Object.values(aspects).filter(v=>v.label!==0).length;
+
+  let sub = '';
+  if(d.overall_color==='spam') sub='Bình luận này không chứa thông tin đánh giá thực sự.';
+  else sub = `Phân tích được ${men}/4 khía cạnh — ${pos} tích cực, ${neg} tiêu cực`;
+  document.getElementById('bSub').textContent = sub;
+
+  // confidence summary
+  const avgConf = men>0
+    ? Math.round(Object.values(aspects).filter(v=>v.label!==0)
+        .reduce((s,v)=>s+v.confidence,0)/men)
+    : 0;
+  const conf = document.getElementById('bConf');
+  if(men>0){
+    conf.textContent = `🎯 Độ tin cậy trung bình: ${avgConf}%`;
+    conf.style.display='inline-flex';
+  } else conf.style.display='none';
+
+  // Breakdown
+  const bdBox = document.getElementById('breakdownBox');
+  if(d.breakdown){
+    bdBox.style.display='block';
+    const posA = d.breakdown.positive_aspects||[];
+    const negA = d.breakdown.negative_aspects||[];
+    document.getElementById('bdGrid').innerHTML = `
+      <div class="bd-col">
+        <div class="bd-col-title pos">✅ Tích cực (${posA.length})</div>
+        ${posA.length ? posA.map(a=>`
+          <div class="bd-item">
+            <span>${a.aspect_vi}</span>
+            <span class="bd-conf" style="color:var(--pos)">${a.confidence}%</span>
+          </div>`).join('') : '<div style="font-size:13px;color:var(--muted)">—</div>'}
+      </div>
+      <div class="bd-col">
+        <div class="bd-col-title neg">❌ Tiêu cực (${negA.length})</div>
+        ${negA.length ? negA.map(a=>`
+          <div class="bd-item">
+            <span>${a.aspect_vi}</span>
+            <span class="bd-conf" style="color:var(--neg)">${a.confidence}%</span>
+          </div>`).join('') : '<div style="font-size:13px;color:var(--muted)">—</div>'}
+      </div>`;
+  } else bdBox.style.display='none';
+
+  // Aspects
+  const card = document.getElementById('aspectsCard');
+  const grid = document.getElementById('aspectGrid');
+  if(d.overall_color==='spam'||!Object.keys(aspects).length){
+    card.style.display='none'; return;
+  }
+  card.style.display='block';
+
+  const emo={0:'⬜',1:'✅',2:'❌',3:'🔄'};
+  const barCls={0:'none',1:'pos',2:'neg',3:'neu'};
+  const lname={'Không đề cập':0,'Tích cực':1,'Tiêu cực':2,'Trung lập':3};
+
+  grid.innerHTML = Object.entries(aspects).map(([key,v],i)=>{
+    const probs = v.probabilities||{};
+    const bars = Object.entries(probs).map(([name,pct])=>`
+      <div class="prow">
+        <div class="phd"><span>${name}</span><span>${pct}%</span></div>
+        <div class="ptrack">
+          <div class="pfill ${barCls[lname[name]??0]}" data-w="${pct}"></div>
+        </div>
+      </div>`).join('');
+    return `
+    <div class="acard l${v.label}">
+      <div class="acard-key">${key}</div>
+      <div class="acard-vi">${v.aspect_vi}</div>
+      <div class="alabel l${v.label}">${emo[v.label]} ${v.label_vi}</div>
+      ${bars}
+    </div>`;
+  }).join('');
+
+  // Animate bars after paint
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('.pfill[data-w]').forEach(el=>{
+      el.style.width=el.dataset.w+'%';
+    });
+  }));
+}
+
+function clearAll(){
+  document.getElementById('reviewInput').value='';
+  document.getElementById('resultBanner').style.display='none';
+  document.getElementById('aspectsCard').style.display='none';
+}
+
+function setLoading(on){
+  document.getElementById('analyzeBtn').disabled=on;
+  document.getElementById('btnTxt').style.display=on?'none':'flex';
+  document.getElementById('spinner').style.display=on?'block':'none';
+}
+
+async function trainSample(){
+  toast('⚡ Đang huấn luyện SVM...');
+  try{
+    const r=await fetch(`${API}/train`,{method:'POST'});
+    const d=await r.json();
+    toast(d.status==='success'?'✅ '+d.message:'❌ '+d.message);
+    checkStatus();
+  }catch(e){ toast('❌ Không kết nối server!'); }
+}
+
+async function uploadCSV(input){
+  const file=input.files[0]; if(!file) return;
+  document.getElementById('uploadName').textContent=file.name;
+  const fd=new FormData(); fd.append('file',file);
+  toast('📂 Đang upload & huấn luyện...');
+  try{
+    const r=await fetch(`${API}/upload_csv`,{method:'POST',body:fd});
+    const d=await r.json();
+    toast(d.status==='success'?'✅ '+d.message:'❌ '+d.message);
+    checkStatus();
+  }catch(e){ toast('❌ Không kết nối server!'); }
+}
+
+async function checkStatus(){
+  try{
+    const r=await fetch(`${API}/status`);
+    const d=await r.json();
+    const dot=document.getElementById('statusDot');
+    const txt=document.getElementById('statusTxt');
+    if(d.ready){
+      dot.className='dot on';
+      txt.textContent=`✅ Sẵn sàng — ${d.models_loaded.length} mô hình SVM đã tải`;
+    } else {
+      dot.className='dot';
+      txt.textContent=`⚠️ Đã tải ${d.models_loaded.length}/4 mô hình. Nhấn "Train dữ liệu mẫu" hoặc upload CSV.`;
+    }
+  }catch(e){
+    document.getElementById('statusDot').className='dot';
+    document.getElementById('statusTxt').textContent='❌ Chưa kết nối server — hãy chạy: python app.py';
+  }
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+document.getElementById('reviewInput').addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='Enter') analyze();
+});
+
+checkStatus();
+setInterval(checkStatus,20000);
+</script>
+</body>
+</html>
